@@ -1,0 +1,175 @@
+//TODO: user information and instructions 
+
+import processing.sound.*;
+
+SoundFile error;
+
+int trial; //current trial number
+int block; //current block number
+int numTrials;
+int numBlocks;
+int userResponse; //s or k
+int timeElapsed; //time user takes for each trial
+int maxTimeElapsed; //time before trial automatically ends
+int trialType; //s for all normal E's, k for backwards E
+int timegrayres; //time user has to respond while in gray screen
+int timegrayscr; //time that the grayscreen will be displayed for
+int oldTime; //time at the start of the trial
+boolean nextTrial;
+PFont f; //for text
+
+int numletters;
+E[] letters;
+
+void setup(){
+  error = new SoundFile(this, "error.wav");
+  numletters = 12;
+  letters = new E[numletters];
+  size(1200, 700);
+  background(255);
+  //frameRate(1000);
+  numTrials = 5;
+  numBlocks = 5;
+  maxTimeElapsed = 1500;
+  timegrayscr = 1000;
+  timegrayres = 2500;
+  trial = 0;
+  block = 0;
+  background(122);
+}
+
+void draw(){
+  timeElapsed = millis() - oldTime;
+  f = createFont("Vernada", 28);
+  fill(0);
+  textFont(f);
+  textAlign(CENTER);
+  if (nextTrial == true) //the user responded in time
+    grayScreen();
+  else if (trial == 0 || trial > numTrials){ //Move to next block
+    background(122);
+    if (block + 1 > numBlocks){
+      text("You have finished the experiment.", width/2, height/2);
+    }
+    else {
+      text("The next block will be block " + (block + 1) + " out of " + 
+            numBlocks + ". Press space to continue.", width/2, height/2);
+    }
+  }
+  else if (timeElapsed > maxTimeElapsed){ //the user took too long
+    background(122); //give them timegrayres to respond while in grayscreen
+    if (timeElapsed > maxTimeElapsed + timegrayres)
+      grayScreen();
+  } 
+  else{
+    background(255);
+    for (int i = 0; i < numletters; i++)
+      letters[i].display();
+    //time(oldTime); //displays time
+  }
+}
+
+void keyPressed(){
+  if ((trial == 0) || (trial > numTrials && block < numBlocks)){ //next block
+    if (key == ' '){ //after user presses space
+      trial = 1;
+      block = block + 1;
+      nextTrial = true;
+    }
+  }
+  else if ((nextTrial == false) && (trial <= numTrials)){
+    if (key == 's' || key == 'k'){
+      nextTrial = true;
+      if (key != trialType)
+        error.play(); //notify user if they made a mistake
+      if (key == 's')
+        userResponse = 's';
+      else 
+        userResponse = 'k';
+    }
+  }
+}
+
+//resets all values and prepares for next trial
+void grayScreen(){ 
+  background(122);
+  f = createFont("Vernada", 28);
+  fill(0);
+  textFont(f);
+  textAlign(CENTER);
+  text("+", width/2, height/2);
+  userResponse = 0;
+  if (random(2) < 1){ //creates the E objects for the next trial
+    trialType = 's';
+    letters[0] = new E(0, true, letters);
+  }
+  else{
+    trialType = 'k';
+    letters[0] = new E(0, false, letters);
+  }
+  for (int i = 1; i < numletters; i++)
+    letters[i] = new E(i, true, letters);
+  delay(timegrayscr);
+  oldTime = millis();
+  trial += 1;
+  nextTrial = false;
+}
+
+//shows time taken so far in current trial
+void time(int oldtime){
+  f = createFont("Vernada", 16);
+  fill(0);
+  textFont(f);
+  text(millis() - oldtime, 50, 50);
+}
+
+//tells the program to wait for however long wait is
+void delay(int wait){
+  int time = millis();
+  while (millis() - time <= wait);
+}
+
+//object class for the E's
+class E{
+  float x, y;
+  int size;
+  int id;
+  int buffer; //area E's will never appear
+  boolean s; //if true, E is normal type, else backwards
+  E[] others;
+  
+  E(int num, boolean norm, E[] prev){
+    id = num;
+    others = prev;
+    s = norm;
+    size = 45;
+    buffer = 200;
+    x = random(width - 2 * buffer) + buffer;
+    y = random(height - 2 * buffer) + buffer;
+    while (collide()){
+      x = random(width - 2 * buffer) + buffer;
+      y = random(height - 2 * buffer) + buffer;
+    }
+  }
+  
+  //checks that this does not collide against previously made letters or borders
+  boolean collide(){
+    for (int i = 0; i < id; i++){
+      float distance = dist(x + size/2, y + size/2, //since coords are upper left
+                       others[i].x + size/2, others[i].y + size/2);
+      if (distance < size || x + 20 > width || y + 20 > height)
+        return true;
+    }
+    return false;
+  }
+  
+  void display(){
+    PImage letter;
+    if (s)
+      letter = loadImage("normal.png");
+    else
+      letter = loadImage("backwards.png");
+    letter.resize(size, size);
+    image(letter, x, y);
+  }
+}
